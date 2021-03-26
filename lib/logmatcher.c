@@ -209,7 +209,7 @@ log_matcher_string_new(const LogMatcherOptions *options)
   self->super.compile = log_matcher_string_compile;
   self->super.match = log_matcher_string_match;
   self->super.replace = log_matcher_string_replace;
-
+  self->super.prefix = NULL;
   return &self->super;
 }
 
@@ -279,7 +279,7 @@ log_matcher_glob_new(const LogMatcherOptions *options)
   self->super.match = log_matcher_glob_match;
   self->super.replace = NULL;
   self->super.free_fn = log_matcher_glob_free;
-
+  self->super.prefix = NULL;
   return &self->super;
 }
 
@@ -445,7 +445,14 @@ log_matcher_pcre_re_feed_named_substrings(LogMatcher *s, LogMessage *msg, int *m
           if (begin_index < 0 || end_index < 0)
             continue;
 
-          log_msg_set_value_by_name(msg, tabptr + 2, value + begin_index, end_index - begin_index);
+          if(self->super.prefix != NULL){
+            GString *formatted_key = g_string_new(self->super.prefix);
+            g_string_append(formatted_key, tabptr + 2);
+            log_msg_set_value_by_name(msg, formatted_key->str, value + begin_index, end_index - begin_index);
+            g_string_free(formatted_key, TRUE);
+          } else{
+            log_msg_set_value_by_name(msg, tabptr + 2, value + begin_index, end_index - begin_index);
+          }
         }
     }
 }
@@ -652,6 +659,7 @@ log_matcher_pcre_re_new(const LogMatcherOptions *options)
   self->super.match = log_matcher_pcre_re_match;
   self->super.replace = log_matcher_pcre_re_replace;
   self->super.free_fn = log_matcher_pcre_re_free;
+  self->super.prefix = NULL;
 
   return &self->super;
 }
