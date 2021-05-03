@@ -21,7 +21,6 @@
 #
 #############################################################################
 import time
-from src.common.blocking import wait_until_true
 
 NUMBER_OF_MESSAGES = 5
 
@@ -33,16 +32,18 @@ def test_pp_with_reconnenct(config, port_allocator, syslog_ng, loggen):
 
     syslog_ng.start(config)
 
-    loggen.start(network_source.options["ip"], network_source.options["port"], inet=True, rate=1, 
-                active_connections=1, reconnect=True, interval=30, number=NUMBER_OF_MESSAGES)
-    
+    loggen.start(
+        network_source.options["ip"], network_source.options["port"], inet=True,
+        rate=1, active_connections=1, reconnect=True, interval=30, number=NUMBER_OF_MESSAGES,
+    )
+
     syslog_ng.stop()
     time.sleep(1)
     syslog_ng.start(config)
     time.sleep(5)
 
-    logs = file_destination.read_logs(counter=NUMBER_OF_MESSAGES-1)
-    
+    logs = file_destination.read_logs(counter=NUMBER_OF_MESSAGES - 1)
+
     # the send function of socket only write data to the output buffer, if the remote host is lost
     # the message in the buffer will be discarded, result in len(logs)=NUMBER_OF_MESSAGES-1
-    assert len(logs) == NUMBER_OF_MESSAGES-1
+    assert len(logs) == NUMBER_OF_MESSAGES - 1
