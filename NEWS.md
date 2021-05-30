@@ -1,134 +1,101 @@
-3.31.1
+3.32.1
 ======
 
 ## Highlights
 
- * fortigate-parser(): new parser to parse fortigate logs
-
+ * `mongodb()`: add `workers()` support (multi-threaded connection pooling)
+   
+   The MongoDB driver now supports the `workers()` option, which specifies the
+   number of parallel workers to be used.
+   Workers are based on the connection pooling feature of the MongoDB C library.
+   
+   This increases the throughput of the MongoDB destination driver.
+   
    Example:
+   
    ```
-   log {
-     source { network(transport("udp") flags(no-parse)); };
-     parser { fortigate-parser(); };
-     destination { };
+   destination {
+     mongodb(
+       uri("mongodb://hostA,hostB/syslog?replicaSet=my_rs&wtimeoutMS=10000&socketTimeoutMS=10000&connectTimeoutMS=10000&serverSelectionTimeoutMS=5000")
+       collection("messages")
+       workers(8)
+     );
    };
    ```
-
-   An adapter to automatically recognize fortigate logs in app-parser() has
-   also been added.
-   ([#3536](https://github.com/syslog-ng/syslog-ng/pull/3536))
-
- * `patterndb`: Added `OPTIONALSET` parser. It works the same as `SET`, but continues, even if none of the
-   characters is found.
-   ([#3540](https://github.com/syslog-ng/syslog-ng/pull/3540))
+   ([#3621](https://github.com/syslog-ng/syslog-ng/pull/3621))
+ * `mongodb()`: template support for the `collection()` option
+   
+   The `collection()` option of the MongoDB destination driver now accepts
+   templates, for example:
+   
+   ```
+   destination {
+     mongodb(
+       uri("mongodb://host/syslog")
+       collection("${HOST}_messages")
+     );
+   };
+   ```
+   ([#3621](https://github.com/syslog-ng/syslog-ng/pull/3621))
 
 ## Features
 
- * `syslog-parser()`: add no-header flag to tell syslog-ng to parse only the
-   PRI field of an incoming message, everything else is just put into $MSG.
-   ([#3538](https://github.com/syslog-ng/syslog-ng/pull/3538))
- * `set-pri()`: this new rewrite operation allows you to change the PRI value
-   of a message based on the string directly parsed out of a syslog header.
-   ([#3546](https://github.com/syslog-ng/syslog-ng/pull/3546))
- * telegram: option to send silent message
-   
-   Example:
-   
-   ```
-   destination { telegram(bot-id(...) chat-id(...) disable_notification(true)); };
-   ```
-   ([#3558](https://github.com/syslog-ng/syslog-ng/pull/3558))
- * `app-parser()`: added automatic classification & parsing for project Lumberjack/Mitre CEE formatted logs
-   ([#3569](https://github.com/syslog-ng/syslog-ng/pull/3569))
- * diskq: if the dir() path provided by the user does not exists, syslog-ng creates the path with the same permission as the running instance
-   ([#3550](https://github.com/syslog-ng/syslog-ng/pull/3550))
+ * `time-reopen`: Support the `time-reopen()` option on the driver level for the following drivers:
+    * sources: `example-diskq-source`, `python-fetcher`
+    * destinations: `amqp`, `example-destination`, `file`, `http`, `mongodb`, `network`, `pipe`,
+                    `program`, `pseudofile`, `python`, `redis`, `riemann`, `smtp`, `sql`, `stomp`,
+                    `syslog`, `tcp`, `tcp6`, `udp`, `udp6`, `unix-dgram`, `unix-stream`, `usertty`
+   ([#3585](https://github.com/syslog-ng/syslog-ng/pull/3585))
+ * `csv-parser()`: add drop-invalid() option along with the already existing
+   flag with the same name. This is to improve the consistency of the
+   configuration language.
+   ([#3547](https://github.com/syslog-ng/syslog-ng/pull/3547))
+ * `usertty() destination`: Support changing the terminal disable timeout with the `time-reopen()` option.
+   Default timeout change to 60 from 600. If you wish to use the old 600 timeout, add `time-reopen(600)`
+   to your config in the `usertty()` driver.
+   ([#3585](https://github.com/syslog-ng/syslog-ng/pull/3585))
+ * `syslog-parser()`: add a new drop-invalid() option that allows the use of
+   syslog-parser() in if statements. Normally a syslog-parser() injects an
+   error message instead of failing.
+   ([#3565](https://github.com/syslog-ng/syslog-ng/pull/3565))
 
 ## Bugfixes
 
- * `network()`, `syslog()` destinations: fix reconnection timer when DNS lookups are slow
+ * date-parser: if the timestamp pattern did not covered a field (for example seconds) that field had undefined value
    
-   After a long-lasting DNS query, syslog-ng did not wait the specified time (`time_reopen()`)
-   before reconnecting to a destination. This has been fixed.
-   ([#3526](https://github.com/syslog-ng/syslog-ng/pull/3526))
- * cmake: minor fixes
-   ([#3523](https://github.com/syslog-ng/syslog-ng/pull/3523))
- * `stats-level()`: fix processing the changes in the stats-level() global
-   option: changes in stats-level() were not reflected in syslog
-   facility/severity related and message tag related counters after first
-   configuration reload. These counters continued to operate according to the
-   value of stats-level() at the first reload.
-   ([#3561](https://github.com/syslog-ng/syslog-ng/pull/3561))
- * `date-parser()`: fix hour-only timezone parsing
+   The missing fields are initialized according to the following rules:
+    1) missing all fields -> use current date
+    2) only miss year -> guess year based on current year and month (current year, last year or next year)
+    3) the rest of the cases don't make much sense, so zero initialization of the missing field makes sense. And the year is initialized to the current one.
+   ([#3615](https://github.com/syslog-ng/syslog-ng/pull/3615))
+ * Fix compilation issues on OpenBSD
    
-   If the timestamp contains a short timezone offset (e.g. hours only), the
-   recent change in strptime() introduces an error, it interprets those
-   numbers as minutes instead of hours. For example: Jan 16 2019 18:23:12 +05
-   ([#3555](https://github.com/syslog-ng/syslog-ng/pull/3555))
- * `loggen`: fix undefined timeout while connecting to network sources (`glib < 2.32`)
+   syslog-ng can now be compiled on OpenBSD.
+   ([#3661](https://github.com/syslog-ng/syslog-ng/pull/3661))
+ * loggen: debug message printed wrong plugin name (ssl-plugin instead of socket_plugin)
+   ([#3624](https://github.com/syslog-ng/syslog-ng/pull/3624))
+ * tls: fixup EOF detection issue in tls (before 3.0 version)
    
-   When compiling syslog-ng with old glib versions (< 2.32), `loggen` could fail due a timeout bug.
-   This has been fixed.
-   ([#3504](https://github.com/syslog-ng/syslog-ng/pull/3504))
- * `grouping-by()`: fix deadlock when context expires
+   syslog-ng error message:
+   "I/O error occurred while reading; fd='13', error='Success (0)'"
+   ([#3618](https://github.com/syslog-ng/syslog-ng/pull/3618))
+ * kafka: the config() block couldn't contain option that is already a keyword in syslog-ng (example: retries)
+   ([#3658](https://github.com/syslog-ng/syslog-ng/pull/3658))
+ * templates: fixed error reporting when invalid templates were specified
    
-   In certain cases, the `grouping-by()` parser could get stuck when a message
-   context expired, causing a deadlock in syslog-ng.
-   
-   This has been fixed.
-   ([#3515](https://github.com/syslog-ng/syslog-ng/pull/3515))
- * `date-parser`: Fixed a crash, which occured sometimes when `%z` was used.
-   ([#3553](https://github.com/syslog-ng/syslog-ng/pull/3553))
- * `date-parser`: `%z`. We no longer ignore daylight saving time when calculating the GMT offset.
-   ([#3553](https://github.com/syslog-ng/syslog-ng/pull/3553))
- * `kafka-c`: fix a double LogMessage acknowledgement bug, which can cause crash with segmentation fault or exit with sigabrt. The issue affects both flow-controlled and non-flow-controlled log paths and it's triggered in case previously published messages failed to be delivered to Kafka.
-   ([#3583](https://github.com/syslog-ng/syslog-ng/pull/3583))
- * `python destination`: Fixed a rare crash during reload.
-   ([#3568](https://github.com/syslog-ng/syslog-ng/pull/3568))
- * `date-parser()`: fix non-mandatory parsing of timezone name
-   
-   When %Z is used, the presence of the timezone qualifier is not mandatory,
-   so don't fail that case.
-   ([#3555](https://github.com/syslog-ng/syslog-ng/pull/3555))
- * `wildcard-file()`: fix infrequent crash when file renamed/recreated
-   
-   The wildcard-file source crashed when a file being processed was replaced by
-   a new one on the same path (renamed, deleted+recreated, rotated, etc.).
-   ([#3513](https://github.com/syslog-ng/syslog-ng/pull/3513))
- * Remove the no-parse flag in system() source from FreeBSD kernel 
-   messages, so the message header is no more part of the message.
-   ([#3586](https://github.com/syslog-ng/syslog-ng/pull/3586))
- * Fix abort on macOS Big Sur
-   
-   A basic subset of syslog-ng's functionality now works on the latest macOS version.
-   ([#3522](https://github.com/syslog-ng/syslog-ng/pull/3522))
- * `affile`: Fix improper initialization in affile and LogWriter to avoid memory leak when reloading
-   ([#3574](https://github.com/syslog-ng/syslog-ng/pull/3574))
- * `udp destination`: Fixed a bug, where the packet's checksum was not calculated,
-   when `spoof-source(yes)` and `ip-protocol(6)` were set.
-   ([#3528](https://github.com/syslog-ng/syslog-ng/pull/3528))
- * `python`: fix LogMessage.keys() listing non-existenting keys and duplicates
-   ([#3557](https://github.com/syslog-ng/syslog-ng/pull/3557))
+   The `amqp()`, `file()` destination, `sql()`, `stomp()`, `pdbtool`, and
+   `graphite()` plugins had template options that did not report errors at startup
+   when invalid values were specified.
+   ([#3660](https://github.com/syslog-ng/syslog-ng/pull/3660))
 
 ## Packaging
 
- * Simplify spec file by removing obsolete technologies:
-   - remove RHEL 6 support
-   - remove Python 2 support
-   - keep Java support, but remove Java-based drivers (HDFS, etc.)
-   ([#3587](https://github.com/syslog-ng/syslog-ng/pull/3587))
- * `libnet`: Minimal libnet version is now 1.1.6.
-   ([#3528](https://github.com/syslog-ng/syslog-ng/pull/3528))
- * configure: added new --enable-manpages-install option along with the
-   existing --enable-manpages. The new option would install pre-existing
-   manpages even without the DocBook tools installed.
-   ([#3493](https://github.com/syslog-ng/syslog-ng/pull/3493))
-
-## Notes to developers
-
- * `apphook`: the concept of hook run modes were introduced, adding support for
-   two modes: AHM_RUN_ONCE (the original behavior) and AHM_RUN_REPEAT (the new
-   behavior with the hook repeatedly called after registration).
-   ([#3561](https://github.com/syslog-ng/syslog-ng/pull/3561))
+ * bison: minimum version of bison is bumped to 3.7.6
+   ([#3547](https://github.com/syslog-ng/syslog-ng/pull/3547))
+ * java-modules: the minimum version of gradle changed from 2.2 to 3.4
+   ([#3645](https://github.com/syslog-ng/syslog-ng/pull/3645))
+ * light: add to the release tarball
+   ([#3613](https://github.com/syslog-ng/syslog-ng/pull/3613))
 
 ## Credits
 
@@ -141,7 +108,7 @@ of syslog-ng, contribute.
 
 We would like to thank the following people for their contribution:
 
-0140454, Andras Mitzki, Antal Nemes, Attila Szakacs, Balazs Scheidler,
-egorbeliy, Gabor Nagy, Laszlo Budai, Laszlo Szemere, László Várady,
-Michael Ducharme, Norbert Takacs, Peter Czanik, Peter Kokai, Pratik raj,
-Ryan Faircloth, Zoltan Pallagi
+Andras Mitzki, Attila Szakacs, Balazs Scheidler,
+Gabor Nagy, Janos SZIGETVARI, Laszlo Budai, Laszlo Szemere,
+LittleFish33, László Várady, Ming Liu, Norbert Takacs, Peter Kokai,
+Todd C. Miller, Yi Fan Yu, Zoltan Pallagi

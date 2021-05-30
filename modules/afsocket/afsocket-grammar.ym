@@ -114,15 +114,6 @@ systemd_syslog_grammar_set_source_driver(SystemDSyslogSourceDriver *sd)
   afsocket_grammar_set_source_driver(&sd->super);
 }
 
-#if SYSLOG_NG_BISON_MAJOR == 3 && SYSLOG_NG_BISON_MINOR <= 5
-
-/* old bison versions (e.g. 3.5.1 and below) when using api.prefix, didn't
- * generate the AFSOCKET_EMPTY enum, but had YYEMPTY, so let's define
- * AFSOCKET_EMPTY to YYEMPTY, so the grammar itself is able to use the new
- * style */
-#define AFSOCKET_EMPTY YYEMPTY
-#endif
-
 }
 
 %define api.prefix {afsocket_}
@@ -400,8 +391,7 @@ source_afsocket_stream_params
 	| KW_MAX_CONNECTIONS '(' positive_integer ')'	 { afsocket_sd_set_max_connections(last_driver, $3); }
 	| KW_LISTEN_BACKLOG '(' positive_integer ')'	{ afsocket_sd_set_listen_backlog(last_driver, $3); }
 	| KW_DYNAMIC_WINDOW_SIZE '(' nonnegative_integer ')' { afsocket_sd_set_dynamic_window_size(last_driver, $3); }
-  | KW_DYNAMIC_WINDOW_STATS_FREQ '(' nonnegative_integer ')' { afsocket_sd_set_dynamic_window_stats_freq(last_driver, $3); }
-  | KW_DYNAMIC_WINDOW_STATS_FREQ '(' LL_FLOAT ')' { afsocket_sd_set_dynamic_window_stats_freq(last_driver, $3); }
+  | KW_DYNAMIC_WINDOW_STATS_FREQ '(' nonnegative_float ')' { afsocket_sd_set_dynamic_window_stats_freq(last_driver, $3); }
   | KW_DYNAMIC_WINDOW_REALLOC_TICKS '(' nonnegative_integer ')' { afsocket_sd_set_dynamic_window_realloc_ticks(last_driver, $3); }
 	;
 

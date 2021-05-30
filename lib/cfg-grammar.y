@@ -52,7 +52,7 @@
 
 /* START_DECLS */
 
-%require "3.4.2"
+%require "3.7.6"
 %locations
 %define api.pure
 %define api.value.type {CFG_STYPE}
@@ -141,6 +141,10 @@
 %token LL_CONTEXT_CLIENT_PROTO        17
 %token LL_CONTEXT_SERVER_PROTO        18
 %token LL_CONTEXT_OPTIONS             19
+%token LL_CONTEXT_CONFIG              20
+
+/* this is a placeholder for unit tests, must be the latest & largest */
+%token LL_CONTEXT_MAX                 21
 
 
 /* statements */
@@ -1198,6 +1202,7 @@ threaded_dest_driver_option
         }
         | KW_BATCH_LINES '(' nonnegative_integer ')' { log_threaded_dest_driver_set_batch_lines(last_driver, $3); }
         | KW_BATCH_TIMEOUT '(' positive_integer ')' { log_threaded_dest_driver_set_batch_timeout(last_driver, $3); }
+        | KW_TIME_REOPEN '(' positive_integer ')' { log_threaded_dest_driver_set_time_reopen(last_driver, $3); }
         | dest_driver_option
         ;
 
@@ -1212,6 +1217,7 @@ threaded_source_driver_option
 
 threaded_fetcher_driver_option
         : KW_FETCH_NO_DATA_DELAY '(' nonnegative_float ')' { log_threaded_fetcher_driver_set_fetch_no_data_delay(last_driver, $3); }
+        | KW_TIME_REOPEN '(' positive_integer ')' { log_threaded_fetcher_driver_set_time_reopen(last_driver, $3); }
         ;
 
 threaded_source_driver_option_flags
@@ -1324,6 +1330,7 @@ dest_writer_option
             log_writer_options_set_mark_mode(last_writer_options, $3);
             free($3);
           }
+	| KW_TIME_REOPEN '(' positive_integer ')' { last_writer_options->time_reopen = $3; }
         | { last_template_options = &last_writer_options->template_options; } template_option
 	;
 

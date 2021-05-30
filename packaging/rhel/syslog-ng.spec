@@ -1,5 +1,5 @@
 Name: syslog-ng
-Version: 3.31.1
+Version: 3.32.1
 Release: 2%{?dist}
 Summary: Next-generation syslog server
 
@@ -273,10 +273,6 @@ ryslog is not on the system.
 
 # fix perl path
 %{__sed} -i 's|^#!/usr/local/bin/perl|#!%{__perl}|' contrib/relogger.pl
-
-# fix Python path
-%{__sed} -i 's|^#!/usr/bin/env python|#!%{__python3}|' lib/merge-grammar.py
-touch -r lib/cfg-grammar.y lib/merge-grammar.py
 
 # fix executable perms on contrib files
 %{__chmod} -c a-x contrib/syslog2ng
@@ -597,6 +593,12 @@ fi
 
 
 %changelog
+* Fri May  7 2021 github-actions <github-actions@github.com> - 3.32.1-1
+- updated to 3.32.1
+
+* Wed Mar 17 2021 github-actions <github-actions@github.com> - 3.31.2-1
+- updated to 3.31.2
+
 * Tue Mar  2 2021 github-actions <github-actions@github.com> - 3.31.1-1
 - updated to 3.31.1
 

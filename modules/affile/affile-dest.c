@@ -97,7 +97,6 @@ struct _AFFileDestWriter
   LogWriter *writer;
   time_t last_msg_stamp;
   time_t last_open_stamp;
-  time_t time_reopen;
   gboolean reopen_pending, queue_pending;
 };
 
@@ -137,12 +136,7 @@ affile_dw_reopen(AFFileDestWriter *self)
 {
   int fd;
   struct stat st;
-  GlobalConfig *cfg;
   LogProtoClient *proto = NULL;
-
-  cfg = log_pipe_get_config(&self->super);
-  if (cfg)
-    self->time_reopen = cfg->time_reopen;
 
   msg_verbose("Initializing destination file writer",
               evt_tag_str("template", self->owner->filename_template->template),
@@ -264,7 +258,7 @@ affile_dw_queue(LogPipe *s, LogMessage *lm, const LogPathOptions *path_options)
 
   if (!log_writer_opened(self->writer) &&
       !self->reopen_pending &&
-      (self->last_open_stamp < self->last_msg_stamp - self->time_reopen))
+      (self->last_open_stamp < self->last_msg_stamp - self->owner->writer_options.time_reopen))
     {
       self->reopen_pending = TRUE;
       /* if the file couldn't be opened, try it again every time_reopen seconds */
@@ -344,7 +338,6 @@ affile_dw_new(const gchar *filename, GlobalConfig *cfg)
   self->super.free_fn = affile_dw_free;
   self->super.queue = affile_dw_queue;
   self->super.notify = affile_dw_notify;
-  self->time_reopen = 60;
 
   /* we have to take care about freeing filename later.
      This avoids a move of the filename. */
@@ -614,7 +607,8 @@ affile_dd_open_writer(gpointer args[])
     {
       if (!self->single_writer)
         {
-          next = affile_dw_new(self->filename_template->template, log_pipe_get_config(&self->super.super.super));
+          next = affile_dw_new(log_template_get_literal_value(self->filename_template, NULL),
+                               log_pipe_get_config(&self->super.super.super));
           affile_dw_set_owner(next, self);
           if (next && log_pipe_init(&next->super))
             {
@@ -766,7 +760,7 @@ affile_dd_free(LogPipe *s)
 }
 
 AFFileDestDriver *
-affile_dd_new_instance(gchar *filename, GlobalConfig *cfg)
+affile_dd_new_instance(LogTemplate *filename_template, GlobalConfig *cfg)
 {
   AFFileDestDriver *self = g_new0(AFFileDestDriver, 1);
 
@@ -776,14 +770,13 @@ affile_dd_new_instance(gchar *filename, GlobalConfig *cfg)
   self->super.super.super.queue = affile_dd_queue;
   self->super.super.super.free_fn = affile_dd_free;
   self->super.super.super.generate_persist_name = affile_dd_format_persist_name;
-  self->filename_template = log_template_new(cfg, NULL);
-  log_template_compile(self->filename_template, filename, NULL);
+  self->filename_template = filename_template;
   log_writer_options_defaults(&self->writer_options);
   self->writer_options.mark_mode = MM_NONE;
   self->writer_options.stats_level = STATS_LEVEL1;
   self->writer_flags = LW_FORMAT_FILE;
 
-  if (strchr(filename, '$') != NULL)
+  if (!log_template_is_literal_string(filename_template))
     {
       self->filename_is_a_template = TRUE;
     }
@@ -798,9 +791,9 @@ affile_dd_new_instance(gchar *filename, GlobalConfig *cfg)
 }
 
 LogDriver *
-affile_dd_new(gchar *filename, GlobalConfig *cfg)
+affile_dd_new(LogTemplate *filename_template, GlobalConfig *cfg)
 {
-  AFFileDestDriver *self = affile_dd_new_instance(filename, cfg);
+  AFFileDestDriver *self = affile_dd_new_instance(filename_template, cfg);
 
   self->writer_flags |= LW_SOFT_FLOW_CONTROL;
   self->writer_options.stats_source = stats_register_type("file");

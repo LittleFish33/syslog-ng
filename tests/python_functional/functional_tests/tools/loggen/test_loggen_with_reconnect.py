@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #############################################################################
-# Copyright (c) 2015-2018 Balabit
+# Copyright (c) 2020 One Identity
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License version 2 as published
@@ -20,35 +20,27 @@
 # COPYING for details.
 #
 #############################################################################
-import logging
 
-from src.common.blocking import wait_until_true
-from src.common.operations import open_file
-
-logger = logging.getLogger(__name__)
+NUMBER_OF_MESSAGES = 3
 
 
-class File(object):
-    def __init__(self, file_path):
-        self.__file_path = file_path
-        self.__opened_file = None
+def test_loggen_with_reconnect(config, port_allocator, syslog_ng, loggen):
+    network_source = config.create_network_source(ip="localhost", port=port_allocator())
+    file_destination = config.create_file_destination(file_name="output.log")
+    config.create_logpath(statements=[network_source, file_destination])
 
-    def __del__(self):
-        if self.__opened_file:
-            self.__opened_file.close()
-            self.__opened_file = None
+    syslog_ng.start(config)
 
-    def __is_file_exist(self):
-        return self.__file_path.exists()
+    loggen.start(
+        network_source.options["ip"], network_source.options["port"], inet=True,
+        rate=1, active_connections=1, reconnect=True, interval=30, number=NUMBER_OF_MESSAGES,
+    )
 
-    def wait_for_creation(self):
-        file_created = wait_until_true(self.__is_file_exist)
-        if file_created:
-            logger.debug("File has been created:\n{}".format(self.__file_path))
-        else:
-            logger.debug("File not created:\n{}".format(self.__file_path))
-        return file_created
+    syslog_ng.stop()
+    syslog_ng.start(config)
 
-    def open_file(self, mode):
-        self.__opened_file = open_file(self.__file_path, mode)
-        return self.__opened_file
+    logs = file_destination.read_logs(counter=NUMBER_OF_MESSAGES - 1)
+
+    # the send function of socket only write data to the output buffer, if the remote host is lost
+    # the message in the buffer will be discarded, result in len(logs)=NUMBER_OF_MESSAGES-1
+    assert len(logs) == NUMBER_OF_MESSAGES - 1
