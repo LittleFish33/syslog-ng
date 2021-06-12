@@ -47,6 +47,7 @@ include modules/systemd-journal/Makefile.am
 include modules/system-source/Makefile.am
 include modules/tagsparser/Makefile.am
 include modules/xml/Makefile.am
+include modules/regexp-parser/Makefile.am
 
 SYSLOG_NG_CORE_JAR=$(top_builddir)/modules/java/syslog-ng-core/libs/syslog-ng-core.jar
 
