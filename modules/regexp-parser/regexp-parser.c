@@ -113,10 +113,11 @@ regexp_parser_process(LogParser *s, LogMessage **pmsg, const LogPathOptions *pat
                 evt_tag_str ("input", input),
                 evt_tag_str ("pattern", ((LogMatcher *)item->data)->pattern));
 
-      if ((G_LIKELY(!self->super.template)
-           && log_matcher_match((LogMatcher *)item->data, *pmsg, LM_V_MESSAGE, input, input_len)) ||
-          (!G_LIKELY(!self->super.template)
-           && log_matcher_match((LogMatcher *)item->data, *pmsg, LM_V_NONE, input, input_len)))
+      gint value_handle = LM_V_MESSAGE;
+      if (G_UNLIKELY(self->super.template))
+        value_handle = LM_V_NONE;
+
+      if (log_matcher_match((LogMatcher *)item->data, *pmsg, value_handle, input, input_len))
         {
           result = TRUE;
           break;
