@@ -48,7 +48,7 @@ test_parameters_raw = [
         "check_MSG_macro",
     ],
 )
-def test_regexp_parser(config, syslog_ng, syslog_ng_ctl, input_message, prefix, patterns, flags, template, compile_result, expected_result, expected_value):
+def test_regexp_parser(config, syslog_ng, input_message, prefix, patterns, flags, template, compile_result, expected_result, expected_value):
     config.update_global_options(stats_level=1)
     generator_source = config.create_example_msg_generator_source(num=1, template=config.stringify(input_message))
     regexp_parser = config.create_regexp_parser(prefix=prefix, patterns=patterns, flags=flags)
@@ -56,10 +56,11 @@ def test_regexp_parser(config, syslog_ng, syslog_ng_ctl, input_message, prefix, 
     file_destination = config.create_file_destination(file_name="output.log", template=config.stringify(template + "\n"))
     config.create_logpath(statements=[generator_source, regexp_parser, file_destination])
 
-    if compile_result is True:
+    if compile_result:
         syslog_ng.start(config)
         if expected_result:
             assert file_destination.read_log().strip() == expected_value
+            assert regexp_parser.get_query() == {'discarded': 0}
         else:
             assert regexp_parser.get_query() == {'discarded': 1}
     else:
